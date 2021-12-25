@@ -4,6 +4,11 @@
 #include <map>
 #include <set>
 #include <string>
+/* 
+* Всегда мучал вопрос.
+*  С какого-то момента стала подключаться библиотека utility
+*  Зачем???
+*/
 #include <utility>
 #include <vector>
 

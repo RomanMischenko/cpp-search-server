@@ -399,6 +399,7 @@ void TestAddDocuments() {
     ASSERT_EQUAL(server.GetDocumentCount(), 1);
     ASSERT_EQUAL(server.FindTopDocuments("test"s).size(), 1);
     ASSERT_EQUAL(server.FindTopDocuments("test"s)[0].id, 0);
+
     server.AddDocument(1, "test"s, DocumentStatus::ACTUAL, {1, 2, 3});
     ASSERT_EQUAL(server.GetDocumentCount(), 2);
     ASSERT_EQUAL(server.FindTopDocuments("test"s).size(), 2);
@@ -409,34 +410,7 @@ void TestAddDocuments() {
 // ----2----
 // Поддержка стоп-слов. 
 // Стоп-слова исключаются из текста документов.
-void TestStopWords() {
-    const int document_id_1 = 1;
-    const int document_id_2 = 2;
-    const string document_1 = "test test_1 test_2 test_3"s;
-    const string document_2 = "test test_3 test_4"s;
-    const DocumentStatus status = DocumentStatus::ACTUAL;
-    const vector<int> ratings_document_1 = {1, 2, 3}; // 2
-    const vector<int> ratings_document_2 = {5, 5, 5}; // 5
-
-    SearchServer server;
-    server.SetStopWords("test test_1 test_2"s);
-    server.AddDocument(document_id_1, document_1, status, ratings_document_1);
-    server.AddDocument(document_id_2, document_2, status, ratings_document_2);
-
-    const auto find_document_1 = server.FindTopDocuments("test"s);
-    const auto find_document_2 = server.FindTopDocuments("test_1"s);
-    const auto find_document_3 = server.FindTopDocuments("test_3 test_4"s);
-    const auto find_document_4 = server.FindTopDocuments("test_4"s);
-
-    ASSERT(find_document_1.empty());
-    ASSERT(find_document_2.empty());
-    ASSERT_EQUAL(find_document_3.size(), 2);
-    ASSERT_EQUAL(find_document_4.size(), 1);
-
-    ASSERT_EQUAL(find_document_3[0].id, 2);
-    ASSERT_EQUAL(find_document_3[1].id, 1);
-    ASSERT_EQUAL(find_document_4[0].id, 2);
-}
+// Ранее реализовано в тестах из примера.
 
 // ----3----
 // Поддержка минус-слов. 
@@ -456,54 +430,17 @@ void TestMinusWords() {
         server.AddDocument(document_id_1, document_1, status, ratings_document_1);
         server.AddDocument(document_id_2, document_2, status, ratings_document_2);
 
-        const auto find_document_1 = server.FindTopDocuments("test test"s);
-        const auto find_document_2 = server.FindTopDocuments("test_1"s);
-        const auto find_document_3 = server.FindTopDocuments("test_3"s);
-        const auto find_document_4 = server.FindTopDocuments("test_3 test_2 test_5"s);
-        const auto find_document_5 = server.FindTopDocuments("test_3 test_4 test"s);
+        ASSERT_EQUAL(server.FindTopDocuments("test"s).size(), 2);
+        ASSERT_EQUAL(server.FindTopDocuments("test"s)[0].id, 2);
+        ASSERT_EQUAL(server.FindTopDocuments("test"s)[1].id, 1);
 
-        ASSERT_EQUAL(find_document_1.size(), 2);
-        ASSERT_EQUAL(find_document_1[0].id, 2);
-        ASSERT_EQUAL(find_document_1[1].id, 1);
+        ASSERT_EQUAL(server.FindTopDocuments("test_1"s).size(), 1);
+        ASSERT_EQUAL(server.FindTopDocuments("test_1"s)[0].id, 1);
 
-        ASSERT_EQUAL(find_document_2.size(), 1);
-        ASSERT_EQUAL(find_document_2[0].id, 1);
-
-        ASSERT_EQUAL(find_document_3.size(), 2);
-        ASSERT_EQUAL(find_document_3[0].id, 2);
-        ASSERT_EQUAL(find_document_3[1].id, 1);
-
-        ASSERT_EQUAL(find_document_4.size(), 2);
-        ASSERT_EQUAL(find_document_4[0].id, 1);
-        ASSERT_EQUAL(find_document_4[1].id, 2);
-
-        ASSERT_EQUAL(find_document_5.size(), 2);
-        ASSERT_EQUAL(find_document_5[0].id, 2);
-        ASSERT_EQUAL(find_document_5[1].id, 1);
-
-        ASSERT(server.FindTopDocuments("-test"s).empty());
-        ASSERT(server.FindTopDocuments("-test_5"s).empty());
         ASSERT(server.FindTopDocuments("-test test"s).empty());
-        ASSERT(server.FindTopDocuments("-test_1 -test"s).empty());
+
         ASSERT_EQUAL(server.FindTopDocuments("-test_1 test"s).size(), 1);
         ASSERT_EQUAL(server.FindTopDocuments("-test_1 test"s)[0].id, 2);
-    }
-
-    {
-        SearchServer server_1, server_2;
-
-        server_1.AddDocument(0, "huge flying green cat"s, DocumentStatus::ACTUAL, {0});
-        ASSERT(server_1.FindTopDocuments("cat -cat"s).empty());
-
-        server_2.AddDocument(0, "test test_1 test_2 test_3"s, DocumentStatus::ACTUAL, {0});
-        server_2.AddDocument(1, "test test_3 test_4"s, DocumentStatus::ACTUAL, {0});
-
-        ASSERT_EQUAL(server_2.FindTopDocuments("test"s).size(), 2);
-        ASSERT_EQUAL(server_2.FindTopDocuments("test"s)[0].id, 0);
-        ASSERT_EQUAL(server_2.FindTopDocuments("test"s)[1].id, 1);
-
-        ASSERT_EQUAL(server_2.FindTopDocuments("test -test_4"s).size(), 1);
-        ASSERT_EQUAL(server_2.FindTopDocuments("test -test_4"s)[0].id, 0);
     }
 }
 
@@ -526,39 +463,32 @@ void TestMatchDocument() {
     server.AddDocument(document_id_1, document_1, status, ratings_document_1);
     server.AddDocument(document_id_2, document_2, status, ratings_document_2);
 
-    const auto find_document_1 = server.MatchDocument("test test_1 test_6"s, document_id_1);
-    const auto find_document_2 = server.MatchDocument("test_3 test"s, document_id_2);
-    const auto find_document_3 = server.MatchDocument("test -test_1"s, document_id_1);
-    const auto find_document_4 = server.MatchDocument("-test"s, document_id_2);
-    const auto find_document_5 = server.MatchDocument("-test test"s, document_id_2);
-    const auto find_document_6 = server.MatchDocument("test -test_1"s, document_id_2);
+    const auto [words_1, status_1] = server.MatchDocument("test test_1 test_6"s, document_id_1);
+    const auto [words_2, status_2] = server.MatchDocument("test_3 test"s, document_id_2);
+    const auto [words_3, status_3] = server.MatchDocument("test -test_1"s, document_id_1);
+    const auto [words_4, status_4] = server.MatchDocument("-test"s, document_id_2);
+    const auto [words_5, status_5] = server.MatchDocument("-test test"s, document_id_2);
+    const auto [words_6, status_6] = server.MatchDocument("test -test_1"s, document_id_2);
 
-    ASSERT_EQUAL(get<0>(find_document_1).size(), 2);
-    ASSERT_EQUAL(get<0>(find_document_2).size(), 2);
-    ASSERT(get<0>(find_document_3).empty());
-    ASSERT(get<0>(find_document_4).empty());
-    ASSERT(get<0>(find_document_5).empty());
-    ASSERT_EQUAL(get<0>(find_document_6).size(), 1);
- 
-    ASSERT_EQUAL(get<1>(find_document_1), DocumentStatus::ACTUAL);
-    ASSERT_EQUAL(get<1>(find_document_2), DocumentStatus::ACTUAL);
-    ASSERT_EQUAL(get<1>(find_document_3), DocumentStatus::ACTUAL);
-    ASSERT_EQUAL(get<1>(find_document_4), DocumentStatus::ACTUAL);
-    ASSERT_EQUAL(get<1>(find_document_5), DocumentStatus::ACTUAL);
-    ASSERT_EQUAL(get<1>(find_document_6), DocumentStatus::ACTUAL);
- 
-    ASSERT(get<0>(find_document_1)[0] == "test"s);
-    ASSERT(get<0>(find_document_1)[1] == "test_1"s);
-    ASSERT(get<0>(find_document_2)[0] == "test"s);
-    ASSERT(get<0>(find_document_2)[1] == "test_3"s);
-    ASSERT(get<0>(find_document_6)[0] == "test"s);
+    ASSERT_EQUAL(words_1.size(), 2);
+    ASSERT_EQUAL(words_2.size(), 2);
+    ASSERT(words_3.empty());
+    ASSERT(words_4.empty());
+    ASSERT(words_5.empty());
+    ASSERT_EQUAL(words_6.size(), 1);
+  
+    ASSERT_EQUAL(words_1[0], "test"s);
+    ASSERT_EQUAL(words_1[1], "test_1"s);
+    ASSERT_EQUAL(words_2[0], "test"s);
+    ASSERT_EQUAL(words_2[1], "test_3"s);
+    ASSERT_EQUAL(words_6[0], "test"s);
 }
 
 // ----5----
 // Сортировка найденных документов по релевантности. 
 // Возвращаемые при поиске документов результаты должны быть отсортированы 
 // в порядке убывания релевантности.
-void TestRelevanse() {
+void TestRelevance() {
     {    
         SearchServer search_server;
         search_server.SetStopWords("и в на"s);
@@ -580,6 +510,10 @@ void TestRelevanse() {
     }
 
     {
+        // А то, что по условию задачи если релевантность одинаковая, то сортируем по рейтингу
+        // можно не проверять?
+        // Или если проверяем, что делать для этого отдельный тест?
+        // Может всё-таки оставим?)
         SearchServer search_server;
         search_server.AddDocument(0, "test"s, DocumentStatus::ACTUAL, {2});
         search_server.AddDocument(1, "test"s, DocumentStatus::ACTUAL, {1});
@@ -589,7 +523,6 @@ void TestRelevanse() {
 
         ASSERT(is_sorted(find_document.begin(), find_document.end(), [] (const auto lhs, const auto rhs) {
             return lhs.rating > rhs.rating; }));
-
     }
 }
 
@@ -617,22 +550,21 @@ void TestRatingCalculation() {
 
     const auto find_document = server.FindTopDocuments("test"s, DocumentStatus::ACTUAL);
     
-    ASSERT_EQUAL(find_document[0].rating, (2+3+5)/3);
-    ASSERT_EQUAL(find_document[1].rating, (1+2+3)/3);
-    ASSERT_EQUAL(find_document[2].rating, (0+0+0)/3);
-    ASSERT_EQUAL(find_document[3].rating, (-20-20-20)/3);
+    ASSERT_EQUAL(find_document[0].rating, (2 + 3 + 5) / 3);
+    ASSERT_EQUAL(find_document[1].rating, (1 + 2 + 3) / 3);
+    ASSERT_EQUAL(find_document[2].rating, (0 + 0 + 0) / 3);
+    ASSERT_EQUAL(find_document[3].rating, ((-20) + (-20) + (-20))/ 3);
 
     ASSERT_EQUAL(find_document[0].id, 4);
     ASSERT_EQUAL(find_document[1].id, 1);
     ASSERT_EQUAL(find_document[2].id, 3);
     ASSERT_EQUAL(find_document[3].id, 2);
-
 }
 
 // ----7----
 // Фильтрация результатов поиска с использованием предиката, 
 // задаваемого пользователем.
-void TestFilterWithPredecant() {
+void TestFilterByPredecant() {
     SearchServer search_server;
     search_server.SetStopWords("и в на"s);
 
@@ -641,39 +573,37 @@ void TestFilterWithPredecant() {
     search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, {5, -12, 2, 1});
     search_server.AddDocument(3, "ухоженный скворец евгений"s,         DocumentStatus::BANNED, {9});
 
+    // проверка четности всех id
     const auto find_document_1 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; });
-    const auto find_document_2 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
-    const auto find_document_3 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return rating > 0; });
-    const auto find_document_4 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return 1; });
-
-    // Фильтрация результатов поиска с использованием предиката, 
-    // задаваемого пользователем.
     ASSERT_EQUAL(find_document_1.size(), 2);
     ASSERT_EQUAL(find_document_1[0].id, 0);
     ASSERT_EQUAL(find_document_1[1].id, 2);
-    // проверка четности всех id
     for (const auto& i : find_document_1) {
         ASSERT_EQUAL(i.id % 2, 0);
     }
 
+    // проверка отсутствия документа с DocumentStatus::BANNED
+    const auto find_document_2 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
     ASSERT_EQUAL(find_document_2.size(), 3);
     ASSERT_EQUAL(find_document_2[0].id, 1);
     ASSERT_EQUAL(find_document_2[1].id, 0);
     ASSERT_EQUAL(find_document_2[2].id, 2);
-    // проверка отсутствия документа с DocumentStatus::BANNED
     for (const auto& i : find_document_2) {
         ASSERT(i.id != 3);
     }
 
+    // проверка, что рейтинг документов > 0
+    const auto find_document_3 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return rating > 0; });
     ASSERT_EQUAL(find_document_3.size(), 3);
     ASSERT_EQUAL(find_document_3[0].id, 1);
     ASSERT_EQUAL(find_document_3[1].id, 3);
     ASSERT_EQUAL(find_document_3[2].id, 0);
-    // проверка, что рейтинг документов > 0
     for (const auto& i : find_document_3) {
         ASSERT(i.rating > 0);
     }
 
+    // проверка на возврат всех добавленных документов
+    const auto find_document_4 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return 1; });
     ASSERT_EQUAL(find_document_4.size(), 4);
     ASSERT_EQUAL(find_document_4[0].id, 1);
     ASSERT_EQUAL(find_document_4[1].id, 3);
@@ -683,33 +613,38 @@ void TestFilterWithPredecant() {
 
 // ----8----
 //Поиск документов, имеющих заданный статус.
-void FineDocumendWithStatus() {
+void FineDocumendByStatus() {
     SearchServer search_server;
 
-    search_server.AddDocument(0, "тест"s,        DocumentStatus::ACTUAL, {8, -3});
-    search_server.AddDocument(1, "тест"s,       DocumentStatus::BANNED, {7, 2, 7});
+    search_server.AddDocument(0, "тест"s, DocumentStatus::ACTUAL, {8, -3});
+    search_server.AddDocument(1, "тест"s, DocumentStatus::BANNED, {7, 2, 7});
     search_server.AddDocument(2, "тест"s, DocumentStatus::IRRELEVANT, {5, -12, 2, 1});
-    search_server.AddDocument(3, "тест"s,         DocumentStatus::REMOVED, {9});
+    search_server.AddDocument(3, "тест"s, DocumentStatus::REMOVED, {9});
 
+    // проверка поиска документа со статусом DocumentStatus::ACTUAL
     const auto find_document_actual = search_server.FindTopDocuments("тест"s, DocumentStatus::ACTUAL);
-    const auto find_document_banned = search_server.FindTopDocuments("тест"s, DocumentStatus::BANNED);
-    const auto find_document_irrelevant = search_server.FindTopDocuments("тест"s, DocumentStatus::IRRELEVANT);
-    const auto find_document_removed = search_server.FindTopDocuments("тест"s, DocumentStatus::REMOVED);
-
     ASSERT_EQUAL(find_document_actual[0].id, 0);
     ASSERT_EQUAL(find_document_actual.size(), 1);
+
+    // проверка поиска документа со статусом DocumentStatus::BANNED
+    const auto find_document_banned = search_server.FindTopDocuments("тест"s, DocumentStatus::BANNED);
     ASSERT_EQUAL(find_document_banned[0].id, 1);
     ASSERT_EQUAL(find_document_banned.size(), 1);
+
+    // проверка поиска документа со статусом DocumentStatus::IRRELEVANT
+    const auto find_document_irrelevant = search_server.FindTopDocuments("тест"s, DocumentStatus::IRRELEVANT);
     ASSERT_EQUAL(find_document_irrelevant[0].id, 2);
     ASSERT_EQUAL(find_document_irrelevant.size(), 1);
+
+    // проверка поиска документа со статусом DocumentStatus::REMOVED
+    const auto find_document_removed = search_server.FindTopDocuments("тест"s, DocumentStatus::REMOVED);
     ASSERT_EQUAL(find_document_removed[0].id, 3);
     ASSERT_EQUAL(find_document_removed.size(), 1);
-
 }
 
 // ----9----
 // Корректное вычисление релевантности найденных документов.
-void TestSolveRelevanse() {
+void TestCalculateRelevance() {
     {
         SearchServer search_server;
         search_server.SetStopWords("и в на"s);
@@ -721,68 +656,31 @@ void TestSolveRelevanse() {
         const auto find_document = search_server.FindTopDocuments("пушистый ухоженный кот"s);
         
         const double MAXIMUM_MEASUREMENT_ERROR_FOR_TEST = 1e-6;
+        const double RELEVANCE_DOC0 = 0.0 * log(3.0) + 0.0 * log(3.0) + (1.0 / 4.0) * log(3.0 / 2.0); // ~0.1014
+        const double RELEVANCE_DOC1 = 0.5 * log(3.0) + 0.0 * log(3.0) + (1.0 / 4.0) * log(3.0 / 2.0); // ~0.6507
+        const double RELEVANCE_DOC2 = 0.0 * log(3.0) + (1.0 / 4.0) * log(3.0) + 0.0 * log(3.0 / 2.0); // ~0.2746
 
         ASSERT_EQUAL(find_document.size(), 3);
-        ASSERT(std::abs(find_document[0].relevance - 0.650672) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
-        ASSERT(std::abs(find_document[1].relevance - 0.274653) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
-        ASSERT(std::abs(find_document[2].relevance - 0.101366) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
+        ASSERT(std::abs(find_document[0].relevance - RELEVANCE_DOC1) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
+        ASSERT(std::abs(find_document[1].relevance - RELEVANCE_DOC2) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
+        ASSERT(std::abs(find_document[2].relevance - RELEVANCE_DOC0) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
         ASSERT_EQUAL(find_document[0].id, 1);
         ASSERT_EQUAL(find_document[1].id, 2);
         ASSERT_EQUAL(find_document[2].id, 0);
     }
-
-    {
-        SearchServer search_server;
-        search_server.SetStopWords("is are was a an in the with near at"s);
-
-        search_server.AddDocument(0, "a colorful parrot with green wings and red tail is lost"s,        DocumentStatus::ACTUAL, {0});
-        search_server.AddDocument(1, "a grey hound with black ears is found at the railway station"s,       DocumentStatus::ACTUAL, {0});
-        search_server.AddDocument(2, "a white cat with long furry tail is found near the red square"s, DocumentStatus::ACTUAL, {0});
-
-        const auto find_document = search_server.FindTopDocuments("white cat long tail"s);
-        
-        const double MAXIMUM_MEASUREMENT_ERROR_FOR_TEST = 1e-6;
-
-        ASSERT_EQUAL(find_document.size(), 2);
-        ASSERT(std::abs(find_document[0].relevance - 0.462663) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
-        ASSERT(std::abs(find_document[1].relevance - 0.0506831) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
-        ASSERT_EQUAL(find_document[0].id, 2);
-        ASSERT_EQUAL(find_document[1].id, 0);
-    }
-
-    {
-        SearchServer search_server;
-        search_server.SetStopWords("и в на белый кот и модный ошейник"s);
-
-        search_server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {0});
-        search_server.AddDocument(1, "пушистый кот пушистый хвост"s,       DocumentStatus::ACTUAL, {0});
-        search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, {0});
-
-        const auto find_document = search_server.FindTopDocuments("пушистый ухоженный кот"s);
-        
-        const double MAXIMUM_MEASUREMENT_ERROR_FOR_TEST = 1e-6;
-
-        ASSERT_EQUAL(find_document.size(), 2);
-        ASSERT(std::abs(find_document[0].relevance - 0.732408) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
-        ASSERT(std::abs(find_document[1].relevance - 0.274653) < MAXIMUM_MEASUREMENT_ERROR_FOR_TEST);
-        ASSERT_EQUAL(find_document[0].id, 1);
-        ASSERT_EQUAL(find_document[1].id, 2);
-    }
-
 }
 
 // Функция TestSearchServer является точкой входа для запуска тестов.
 void TestSearchServer() {
     TestExcludeStopWordsFromAddedDocumentContent(); // 0
     TestAddDocuments(); // 1
-    TestStopWords(); // 2
     TestMinusWords(); // 3
     TestMatchDocument(); // 4
-    TestRelevanse(); // 5
+    TestRelevance(); // 5
     TestRatingCalculation(); // 6
-    TestFilterWithPredecant(); // 7
-    FineDocumendWithStatus(); // 8
-    TestSolveRelevanse(); // 9
+    TestFilterByPredecant(); // 7
+    FineDocumendByStatus(); // 8
+    TestCalculateRelevance(); // 9
 }
 
 // --------- Окончание модульных тестов поисковой системы -----------

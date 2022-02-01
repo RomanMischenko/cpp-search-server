@@ -464,23 +464,26 @@ void TestMatchDocument() {
     server.AddDocument(document_id_2, document_2, status, ratings_document_2);
 
     const auto [words_1, status_1] = server.MatchDocument("test test_1 test_6"s, document_id_1);
-    const auto [words_2, status_2] = server.MatchDocument("test_3 test"s, document_id_2);
-    const auto [words_3, status_3] = server.MatchDocument("test -test_1"s, document_id_1);
-    const auto [words_4, status_4] = server.MatchDocument("-test"s, document_id_2);
-    const auto [words_5, status_5] = server.MatchDocument("-test test"s, document_id_2);
-    const auto [words_6, status_6] = server.MatchDocument("test -test_1"s, document_id_2);
-
     ASSERT_EQUAL(words_1.size(), 2);
-    ASSERT_EQUAL(words_2.size(), 2);
-    ASSERT(words_3.empty());
-    ASSERT(words_4.empty());
-    ASSERT(words_5.empty());
-    ASSERT_EQUAL(words_6.size(), 1);
-  
     ASSERT_EQUAL(words_1[0], "test"s);
     ASSERT_EQUAL(words_1[1], "test_1"s);
+
+    const auto [words_2, status_2] = server.MatchDocument("test_3 test"s, document_id_2);
+    ASSERT_EQUAL(words_2.size(), 2);
     ASSERT_EQUAL(words_2[0], "test"s);
     ASSERT_EQUAL(words_2[1], "test_3"s);
+
+    const auto [words_3, status_3] = server.MatchDocument("test -test_1"s, document_id_1);
+    ASSERT(words_3.empty());
+
+    const auto [words_4, status_4] = server.MatchDocument("-test"s, document_id_2);
+    ASSERT(words_4.empty());
+
+    const auto [words_5, status_5] = server.MatchDocument("-test test"s, document_id_2);
+    ASSERT(words_5.empty());
+
+    const auto [words_6, status_6] = server.MatchDocument("test -test_1"s, document_id_2);
+    ASSERT_EQUAL(words_6.size(), 1);
     ASSERT_EQUAL(words_6[0], "test"s);
 }
 
@@ -512,7 +515,7 @@ void TestRelevance() {
     {
         // А то, что по условию задачи если релевантность одинаковая, то сортируем по рейтингу
         // можно не проверять?
-        // Или если проверяем, что делать для этого отдельный тест?
+        // Или если проверяем, то делать для этого отдельный тест?
         // Может всё-таки оставим?)
         SearchServer search_server;
         search_server.AddDocument(0, "test"s, DocumentStatus::ACTUAL, {2});
@@ -564,7 +567,7 @@ void TestRatingCalculation() {
 // ----7----
 // Фильтрация результатов поиска с использованием предиката, 
 // задаваемого пользователем.
-void TestFilterByPredecant() {
+void TestFilterByPredicate() {
     SearchServer search_server;
     search_server.SetStopWords("и в на"s);
 
@@ -578,8 +581,8 @@ void TestFilterByPredecant() {
     ASSERT_EQUAL(find_document_1.size(), 2);
     ASSERT_EQUAL(find_document_1[0].id, 0);
     ASSERT_EQUAL(find_document_1[1].id, 2);
-    for (const auto& i : find_document_1) {
-        ASSERT_EQUAL(i.id % 2, 0);
+    for (const auto& doc : find_document_1) {
+        ASSERT_EQUAL(doc.id % 2, 0);
     }
 
     // проверка отсутствия документа с DocumentStatus::BANNED
@@ -588,8 +591,8 @@ void TestFilterByPredecant() {
     ASSERT_EQUAL(find_document_2[0].id, 1);
     ASSERT_EQUAL(find_document_2[1].id, 0);
     ASSERT_EQUAL(find_document_2[2].id, 2);
-    for (const auto& i : find_document_2) {
-        ASSERT(i.id != 3);
+    for (const auto& doc : find_document_2) {
+        ASSERT(doc.id != 3);
     }
 
     // проверка, что рейтинг документов > 0
@@ -598,8 +601,8 @@ void TestFilterByPredecant() {
     ASSERT_EQUAL(find_document_3[0].id, 1);
     ASSERT_EQUAL(find_document_3[1].id, 3);
     ASSERT_EQUAL(find_document_3[2].id, 0);
-    for (const auto& i : find_document_3) {
-        ASSERT(i.rating > 0);
+    for (const auto& doc : find_document_3) {
+        ASSERT(doc.rating > 0);
     }
 
     // проверка на возврат всех добавленных документов
@@ -613,7 +616,7 @@ void TestFilterByPredecant() {
 
 // ----8----
 //Поиск документов, имеющих заданный статус.
-void FineDocumendByStatus() {
+void TestFineDocumendByStatus() {
     SearchServer search_server;
 
     search_server.AddDocument(0, "тест"s, DocumentStatus::ACTUAL, {8, -3});
@@ -678,8 +681,8 @@ void TestSearchServer() {
     TestMatchDocument(); // 4
     TestRelevance(); // 5
     TestRatingCalculation(); // 6
-    TestFilterByPredecant(); // 7
-    FineDocumendByStatus(); // 8
+    TestFilterByPredicate(); // 7
+    TestFineDocumendByStatus(); // 8
     TestCalculateRelevance(); // 9
 }
 

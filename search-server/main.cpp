@@ -163,11 +163,10 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        if ((index >= 0) && (index < GetDocumentCount()) && (!documents_.empty())) {
-            return sequence_of_adding_id_[index];
-        } else {
+        if ((index < 0) || (index >= GetDocumentCount())) {
             throw out_of_range("out_of_range"s);
         }
+        return sequence_of_adding_id_[index];
     }
     
 private:

@@ -163,7 +163,7 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        if ((index < GetDocumentCount()) && (!documents_.empty())) {
+        if ((index >= 0) && (index < GetDocumentCount()) && (!documents_.empty())) {
             return sequence_of_adding_id_[index];
         } else {
             throw out_of_range("out_of_range"s);
@@ -747,6 +747,20 @@ void TestGetDocumentId () {
             SearchServer server(""s);
             server.AddDocument(0, "test"s, DocumentStatus::ACTUAL, {0});
             server.GetDocumentId(1);
+            ASSERT_EQUAL_HINT(1, 2, "No exception");
+        }
+        catch(const out_of_range& e)
+        {
+            ostringstream output;
+            output << e.what();
+            ASSERT_EQUAL(output.str(), "out_of_range"s);
+        }
+
+        try
+        {
+            SearchServer server(""s);
+            server.AddDocument(0, "test"s, DocumentStatus::ACTUAL, {0});
+            server.GetDocumentId(-1);
             ASSERT_EQUAL_HINT(1, 2, "No exception");
         }
         catch(const out_of_range& e)

@@ -238,16 +238,22 @@ private:
         bool is_stop;
     };
     
-    QueryWord ParseQueryWord(string text) const {
+    QueryWord ParseQueryWord(string word) const {
         bool is_minus = false;
-        if (text[0] == '-') {
+        if (word[0] == '-') {
             is_minus = true;
-            text = text.substr(1);
+            word = word.substr(1);
+        }
+        // Проверка на отсутствие в поисковом запросе текста после символа «минус», 
+        // на отсутствие спецсимволов и на на указание в поисковом запросе 
+        // более чем одного минуса перед словами
+        if ((word.size() == 0) || (!IsValidWord(word)) || (word[0] == '-')) {
+            throw invalid_argument("invalid_argument"s);
         }
         return {
-            text,
+            word,
             is_minus,
-            IsStopWord(text)
+            IsStopWord(word)
         };
     }
     
@@ -258,25 +264,9 @@ private:
     
     Query ParseQuery(const string& raw_query) const {
         Query query;
-        // Проверка на отсутствие в поисковом запросе текста после символа «минус»
-        for (size_t i = 0; i < raw_query.size() - 1; ++i) {
-            if (raw_query[i] == '-' && raw_query[i+1] == ' ') {
-                throw invalid_argument("invalid_argument"s);
-            } else if ((raw_query[i+1] == '-') && (i + 1 == raw_query.size() - 1)) {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
         for (const string& word : SplitIntoWords(raw_query)) {
-            // Проверка на отсутствие спецсимволов
-            if (!IsValidWord(word)) {
-                throw invalid_argument("invalid_argument"s);
-            }
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
-                // Проверка на указание в поисковом запросе более чем одного минуса перед словами
-                if (query_word.data[0] == '-') {
-                    throw invalid_argument("invalid_argument"s);
-                }
                 if (query_word.is_minus) {
                     query.minus_words.insert(query_word.data);
                 } else {

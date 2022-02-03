@@ -45,7 +45,6 @@ vector<string> SplitIntoWords(const string& text) {
     if (!word.empty()) {
         words.push_back(word);
     }
-
     return words;
 }
     
@@ -73,38 +72,18 @@ enum class DocumentStatus {
 class SearchServer {
 public:
 
-    inline static constexpr int INVALID_DOCUMENT_ID = -1;
-
-    explicit SearchServer(const string& stop_words) {
-        if (!stop_words.empty()) {
-            for (const string& word : SplitIntoWords(stop_words)) {
-                if (!IsValidWord(word)) {
-                    throw invalid_argument("invalid_argument"s);
-                }
-                stop_words_.insert(word);
-            }
-        }
+    explicit SearchServer(const string& stop_words) 
+    : SearchServer(SplitIntoWords(stop_words))
+    {
     }
 
     template<typename StringCollection>
     explicit SearchServer(const StringCollection& stop_words) {
-        for (const auto& word : stop_words) {
-            if (!IsValidWord(word)) {
-                    throw invalid_argument("invalid_argument"s);
-                }
-            if (!word.empty()) {
-                stop_words_.insert(word);
-            }
-        }
+        InsertCorrectStopWords(stop_words);
     }
 
     void SetStopWords(const string& text) {
-        for (const string& word : SplitIntoWords(text)) {
-            if (!IsValidWord(word)) {
-                    throw invalid_argument("invalid_argument"s);
-                }
-            stop_words_.insert(word);
-        }
+        InsertCorrectStopWords(SplitIntoWords(text));
     }    
     
     void AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
@@ -114,11 +93,7 @@ public:
         const vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
-            if (!IsValidWord(word)) {
-                throw invalid_argument("invalid_argument"s);
-            } else {
-                word_to_document_freqs_[word][document_id] += inv_word_count;
-            }
+            word_to_document_freqs_[word][document_id] += inv_word_count;
         }
         documents_.emplace(document_id, 
             DocumentData{
@@ -133,42 +108,17 @@ public:
         return FindTopDocuments(raw_query, DocumentStatus::ACTUAL); 
     }
 
-    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status_1) const { 
-        auto key_l = [status_1](int document_id, DocumentStatus status_2, int rating) { 
-            return status_1 == status_2;  };
+    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const { 
+        auto key_l = [status](int document_id, DocumentStatus compare_status, int rating) { 
+            return status == compare_status;  };
         return FindTopDocuments(raw_query, key_l); 
     }
 
     template <typename KeyMapper>
-    vector<Document> FindTopDocuments(const string& raw_query, KeyMapper keymapper) const {            
+    vector<Document> FindTopDocuments(const string& raw_query, KeyMapper key_mapper) const {            
         const Query query = ParseQuery(raw_query);
-        // Наличие спецсимволов
-        for (const auto& minus_word : query.minus_words) {
-            if (!IsValidWord(minus_word)) {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
-        for (const auto& plus_word : query.plus_words) {
-            if (!IsValidWord(plus_word)) {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
-        // Отсутствие в поисковом запросе текста после символа «минус»
-        for (size_t i = 0; i < raw_query.size() - 1; ++i) {
-            if (raw_query[i] == '-' && raw_query[i+1] == ' ') {
-                throw invalid_argument("invalid_argument"s);
-            } else if ((raw_query[i+1] == '-') && (i + 1 == raw_query.size() - 1)) {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
-        // Указание в поисковом запросе более чем одного минуса перед словами
-        for (const auto& minus_word : query.minus_words) {
-            if (minus_word[0] == '-') {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
 
-        auto matched_documents = FindAllDocuments(query, keymapper);
+        auto matched_documents = FindAllDocuments(query, key_mapper);
         
         sort(matched_documents.begin(), matched_documents.end(),
              [](const Document& lhs, const Document& rhs) {
@@ -189,32 +139,9 @@ public:
     }
     
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
+        
         const Query query = ParseQuery(raw_query);
-        // Наличие спецсимволов
-        for (const auto& minus_word : query.minus_words) {
-            if (!IsValidWord(minus_word)) {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
-        for (const auto& plus_word : query.plus_words) {
-            if (!IsValidWord(plus_word)) {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
-        // Отсутствие в поисковом запросе текста после символа «минус»
-        for (size_t i = 0; i < raw_query.size() - 1; ++i) {
-            if (raw_query[i] == '-' && raw_query[i+1] == ' ') {
-                throw invalid_argument("invalid_argument"s);
-            } else if ((raw_query[i+1] == '-') && (i + 1 == raw_query.size() - 1)) {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
-        // Указание в поисковом запросе более чем одного минуса перед словами
-        for (const auto& minus_word : query.minus_words) {
-            if (minus_word[0] == '-') {
-                throw invalid_argument("invalid_argument"s);
-            }
-        }
+
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
@@ -263,6 +190,18 @@ private:
     map<int, DocumentData> documents_;
     int index_ = 0;
 
+    template<typename StringCollection>
+    void InsertCorrectStopWords(const StringCollection& stop_words) {
+        for (const auto& word : stop_words) {
+            if (!IsValidWord(word)) {
+                    throw invalid_argument("invalid_argument"s);
+                }
+            if (!word.empty()) {
+                stop_words_.insert(word);
+            }
+        }
+    }
+    
     static bool IsValidWord(const string& word) {
         return none_of(word.begin(), word.end(), [](char c) {
             return c >= '\0' && c < ' ';
@@ -276,7 +215,9 @@ private:
     vector<string> SplitIntoWordsNoStop(const string& text) const {
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
-            if (!IsStopWord(word)) {
+            if (!IsValidWord(word)) {
+                throw invalid_argument("invalid_argument"s);
+            } else if (!IsStopWord(word)) {
                 words.push_back(word);
             }
         }
@@ -315,11 +256,27 @@ private:
         set<string> minus_words;
     };
     
-    Query ParseQuery(const string& text) const {
+    Query ParseQuery(const string& raw_query) const {
         Query query;
-        for (const string& word : SplitIntoWords(text)) {
+        // Проверка на отсутствие в поисковом запросе текста после символа «минус»
+        for (size_t i = 0; i < raw_query.size() - 1; ++i) {
+            if (raw_query[i] == '-' && raw_query[i+1] == ' ') {
+                throw invalid_argument("invalid_argument"s);
+            } else if ((raw_query[i+1] == '-') && (i + 1 == raw_query.size() - 1)) {
+                throw invalid_argument("invalid_argument"s);
+            }
+        }
+        for (const string& word : SplitIntoWords(raw_query)) {
+            // Проверка на отсутствие спецсимволов
+            if (!IsValidWord(word)) {
+                throw invalid_argument("invalid_argument"s);
+            }
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
+                // Проверка на указание в поисковом запросе более чем одного минуса перед словами
+                if (query_word.data[0] == '-') {
+                    throw invalid_argument("invalid_argument"s);
+                }
                 if (query_word.is_minus) {
                     query.minus_words.insert(query_word.data);
                 } else {
@@ -399,7 +356,6 @@ ostream& Print (ostream& out, const Element& container) {
     return out;
 }
 
-
 template <typename Element>
 ostream& operator<<(ostream& out, const vector<Element>& container) {
     out << "["s;
@@ -477,7 +433,6 @@ void ASSERTImpl(bool value, const string& expr_str, const string& file, const st
 
 #define ASSERT_HINT(expr, hint) ASSERTImpl(!!(expr), #expr, __FILE__, __FUNCTION__, __LINE__, (hint))
 
-
 // -------- Начало модульных тестов поисковой системы ----------
 
 // ----0----
@@ -510,7 +465,6 @@ void TestExcludeStopWordsFromAddedDocumentContent() {
 // ----1----
 // Добавление документов. 
 // Добавленный документ должен находиться по поисковому запросу, который содержит слова из документа.
-
 void TestAddDocuments() {
     SearchServer server("  и  в на   "s);
 
@@ -653,7 +607,6 @@ void TestRelevance() {
 // ----6----
 // Вычисление рейтинга документов. 
 // Рейтинг добавленного документа равен среднему арифметическому оценок документа.
-
 void TestRatingCalculation() {
     const int document_id_1 = 1;
     const int document_id_2 = 2;

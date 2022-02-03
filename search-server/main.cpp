@@ -98,10 +98,9 @@ public:
         documents_.emplace(document_id, 
             DocumentData{
                 ComputeAverageRating(ratings), 
-                status,
-                index_
+                status
             });
-        ++index_;
+        sequence_of_adding_id_.push_back(document_id);
     }
 
     vector<Document> FindTopDocuments(const string& raw_query) const { 
@@ -164,31 +163,23 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        if (documents_.empty()) {
+        if ((index < GetDocumentCount()) && (!documents_.empty())) {
+            return sequence_of_adding_id_[index];
+        } else {
             throw out_of_range("out_of_range"s);
         }
-        if (index > static_cast<int>(documents_.size())) {
-            throw out_of_range("out_of_range"s);
-        }
-        for (const auto& [id, value] : documents_) {
-            if (value.index == index) {
-                return id;
-            }
-        }
-        throw out_of_range("out_of_range"s);
     }
     
 private:
     struct DocumentData {
         int rating;
         DocumentStatus status;
-        int index;
     };
 
     set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
-    int index_ = 0;
+    vector<int> sequence_of_adding_id_;
 
     template<typename StringCollection>
     void InsertCorrectStopWords(const StringCollection& stop_words) {

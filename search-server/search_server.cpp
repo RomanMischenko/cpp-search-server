@@ -5,12 +5,21 @@ using namespace std;
 
 SearchServer::SearchServer(const string& stop_words) 
     : SearchServer(SplitIntoWords(stop_words))
-    {
-    }
+{}
 
 void SearchServer::SetStopWords(const string& text) {
         InsertCorrectStopWords(SplitIntoWords(text));
-    }    
+}    
+
+vector<Document> SearchServer::FindTopDocuments(const string& raw_query) const { 
+    return FindTopDocuments(raw_query, DocumentStatus::ACTUAL); 
+}
+
+vector<Document> SearchServer::FindTopDocuments(const string& raw_query, DocumentStatus status) const { 
+    auto key_l = [status](int document_id, DocumentStatus compare_status, int rating) { 
+        return status == compare_status;  };
+    return FindTopDocuments(raw_query, key_l); 
+}
 
 void SearchServer::AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
     if (document_id < 0 || documents_.count(document_id)) {

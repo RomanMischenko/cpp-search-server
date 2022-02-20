@@ -8,8 +8,7 @@ Document::Document() = default;
 
 Document::Document(int new_id, double new_relevance, int new_rating) 
     : id(new_id), relevance(new_relevance), rating(new_rating)
-    {
-    }
+{}
 
 ostream& operator<<(ostream& out, const Document doc) {
     out << "{ document_id = "s;

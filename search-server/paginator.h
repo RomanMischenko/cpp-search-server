@@ -48,18 +48,12 @@ template<typename Iterator>
 class Paginator {
 public:
     Paginator(Iterator range_begin, Iterator range_end, int page_size){
-        auto dist = distance(range_begin, range_end);
-        for (auto i = 0; i <= dist; ++i) {
-            if (dist <= page_size) {
-                pages_.push_back({ range_begin, range_end });
-                break;
-            } else {
-                auto end = range_begin;
-                advance(end, page_size);
-                pages_.push_back({ range_begin, end });
-                range_begin = end;
-                dist = distance(range_begin, range_end);
-            }
+        for (auto left = distance(begin, end); left > 0;) {
+            const auto current_page_size = min(page_size, left);
+            const Iterator current_page_end = next(begin, current_page_size);
+            pages_.push_back({begin, current_page_end});
+            left -= current_page_size;
+            begin = current_page_end;
         }             
     }
     

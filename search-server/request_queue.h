@@ -39,15 +39,9 @@ public:
         return matched_documents;
     }
 
-    vector<Document> AddFindRequest(const string& raw_query, DocumentStatus status) {
-        auto key_l = [status](int document_id, DocumentStatus compare_status, int rating) { 
-            return status == compare_status;  };
-        return AddFindRequest(raw_query, key_l);
-    }
+    vector<Document> AddFindRequest(const string& raw_query, DocumentStatus status);
 
-    vector<Document> AddFindRequest(const string& raw_query) {
-        return AddFindRequest(raw_query, DocumentStatus::ACTUAL);
-    }
+    vector<Document> AddFindRequest(const string& raw_query);
 
     int GetNoResultRequests() const;
 

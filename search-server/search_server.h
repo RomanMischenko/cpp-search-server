@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include "log_duration.h"
 
 const double MAXIMUM_MEASUREMENT_ERROR = 1e-6;
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
@@ -29,7 +30,8 @@ public:
     vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const;
 
     template <typename KeyMapper>
-    vector<Document> FindTopDocuments(const string& raw_query, KeyMapper key_mapper) const {            
+    vector<Document> FindTopDocuments(const string& raw_query, KeyMapper key_mapper) const {   
+        LOG_DURATION_STREAM("Operation time"s, cout);         
         const Query query = ParseQuery(raw_query);
 
         auto matched_documents = FindAllDocuments(query, key_mapper);
@@ -53,6 +55,14 @@ public:
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const;
 
     int GetDocumentId(int index) const;
+
+    vector<int>::const_iterator begin() const;
+
+    vector<int>::const_iterator end() const;
+
+    const map<string, double>& GetWordFrequencies(int document_id) const;
+
+    void RemoveDocument(int document_id);
     
 private:
     struct DocumentData {
@@ -64,6 +74,7 @@ private:
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
     vector<int> sequence_of_adding_id_;
+    map<int, map<string, double>> word_frequencies_;
 
     template<typename StringCollection>
     void InsertCorrectStopWords(const StringCollection& stop_words) {

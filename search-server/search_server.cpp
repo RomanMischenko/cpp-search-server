@@ -1,6 +1,7 @@
 #include "string_processing.h"
 #include "search_server.h"
 
+
 using namespace std;
 
 SearchServer::SearchServer(const string& stop_words) 
@@ -15,7 +16,7 @@ vector<Document> SearchServer::FindTopDocuments(const string& raw_query) const {
     return FindTopDocuments(raw_query, DocumentStatus::ACTUAL); 
 }
 
-vector<Document> SearchServer::FindTopDocuments(const string& raw_query, DocumentStatus status) const { 
+vector<Document> SearchServer::FindTopDocuments(const string& raw_query, DocumentStatus status) const {
     auto key_l = [status](int document_id, DocumentStatus compare_status, int rating) { 
         return status == compare_status;  };
     return FindTopDocuments(raw_query, key_l); 
@@ -29,6 +30,7 @@ void SearchServer::AddDocument(int document_id, const string& document, Document
     const double inv_word_count = 1.0 / words.size();
     for (const string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
+        word_frequencies_[document_id][word] += inv_word_count;
     }
     documents_.emplace(document_id, 
         DocumentData{
@@ -43,7 +45,7 @@ int SearchServer::GetDocumentCount() const {
 }
 
 tuple<vector<string>, DocumentStatus> SearchServer::MatchDocument(const string& raw_query, int document_id) const {
-    
+    LOG_DURATION_STREAM("Operation time"s, cout);
     const Query query = ParseQuery(raw_query);
 
     vector<string> matched_words;
@@ -140,4 +142,37 @@ SearchServer::Query SearchServer::ParseQuery(const string& raw_query) const {
 
 double SearchServer::ComputeWordInverseDocumentFreq(const string& word) const {
     return log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
+}
+
+vector<int>::const_iterator SearchServer::begin() const {
+    return sequence_of_adding_id_.begin();
+}
+
+vector<int>::const_iterator SearchServer::end() const {
+    return sequence_of_adding_id_.end();
+}
+
+const map<string, double>& SearchServer::GetWordFrequencies(int document_id) const {
+    static const map<string, double> empty_map = {};
+    if (!word_frequencies_.count(document_id)) {
+        return empty_map;
+    } else {
+        return word_frequencies_.at(document_id);
+    }
+}
+
+void SearchServer::RemoveDocument(int document_id) {
+    documents_.erase(documents_.find(document_id));
+    word_frequencies_.erase(word_frequencies_.find(document_id));
+    sequence_of_adding_id_.erase(find(sequence_of_adding_id_.begin(), sequence_of_adding_id_.end(), document_id));
+
+    for (auto it = word_to_document_freqs_.begin(); it != word_to_document_freqs_.end(); ) {
+        if (it->second.count(document_id) && (it->second.size() == 1)) {
+            it = word_to_document_freqs_.erase(it);
+        } else if (it->second.count(document_id) && (it->second.size() > 1)) {
+            it->second.erase(it->second.find(document_id));
+        } else {
+            ++it;
+        }
+    }
 }

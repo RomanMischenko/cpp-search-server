@@ -49,13 +49,15 @@ template<typename Iterator>
 class Paginator {
 public:
     Paginator(Iterator range_begin, Iterator range_end, int page_size){
-        for (auto left = distance(range_begin, range_end); left > 0;) {
-            const auto current_page_size = min(page_size, static_cast<int>(left));
-            const Iterator current_page_end = next(range_begin, current_page_size);
-            pages_.push_back({range_begin, current_page_end});
-            left -= current_page_size;
-            range_begin = current_page_end;
-        }             
+        if (range_end >= range_begin && page_size > 0) {
+            for (auto left = distance(range_begin, range_end); left > 0;) {
+                const auto current_page_size = min(page_size, static_cast<int>(left));
+                const Iterator current_page_end = next(range_begin, current_page_size);
+                pages_.push_back({range_begin, current_page_end});
+                left -= current_page_size;
+                range_begin = current_page_end;
+            } 
+        }           
     }
     
     auto begin() const {

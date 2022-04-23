@@ -9,11 +9,11 @@ void RemoveDuplicates(SearchServer& search_server) {
     // множество с id документов под удаление
     set<int> id_documents_to_remove;
     // словарь со множеством слов и id их документа
-    map<set<string>, int> words_to_document;
+    map<set<string_view>, int> words_to_document;
     for (const int document_id : search_server) {
         // нахождение уникальных слов для документа с document_id
-        set<string> document_words;
-        const map<string, double> word_freqs = search_server.GetWordFrequencies(document_id);
+        set<string_view> document_words;
+        const map<string_view, double> word_freqs = search_server.GetWordFrequencies(document_id);
         for (auto [word, freqs] : word_freqs) {
             document_words.insert(word);
         }

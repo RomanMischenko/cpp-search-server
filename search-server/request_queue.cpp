@@ -16,12 +16,12 @@ int RequestQueue::GetNoResultRequests() const {
     return result;
 }
 
-vector<Document> RequestQueue::AddFindRequest(const string& raw_query, DocumentStatus status) {
+vector<Document> RequestQueue::AddFindRequest(const string_view& raw_query, DocumentStatus status) {
     auto key_l = [status](int document_id, DocumentStatus compare_status, int rating) { 
         return status == compare_status;  };
     return AddFindRequest(raw_query, key_l);
 }
 
-vector<Document> RequestQueue::AddFindRequest(const string& raw_query) {
+vector<Document> RequestQueue::AddFindRequest(const string_view& raw_query) {
     return AddFindRequest(raw_query, DocumentStatus::ACTUAL);
 }

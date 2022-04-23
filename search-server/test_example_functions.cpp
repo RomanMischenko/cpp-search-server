@@ -1,6 +1,9 @@
 #include "test_example_functions.h"
 #include "search_server.h"
 #include "remove_duplicates.h"
+#include "process_queries.h"
+
+#include <execution>
 
 void ASSERTImpl(bool value, const string& expr_str, const string& file, const string& func, unsigned line,
                 const string& hint) {
@@ -116,40 +119,82 @@ void TestMinusWords() {
 // Если есть соответствие хотя бы по одному минус-слову, 
 // должен возвращаться пустой список слов.
 void TestMatchDocument() {
-    const int document_id_1 = 1;
-    const int document_id_2 = 2;
-    const string document_1 = "test test_1 test_2 test_3"s;
-    const string document_2 = "test test_3 test_4"s;
-    const DocumentStatus status = DocumentStatus::ACTUAL;
-    const vector<int> ratings_document_1 = {1, 2, 3}; // 2
-    const vector<int> ratings_document_2 = {5, 5, 5}; // 5
+    // execution::seq
+    {
+        const int document_id_1 = 1;
+        const int document_id_2 = 2;
+        const string document_1 = "test test_1 test_2 test_3"s;
+        const string document_2 = "test test_3 test_4"s;
+        const DocumentStatus status = DocumentStatus::ACTUAL;
+        const vector<int> ratings_document_1 = {1, 2, 3}; // 2
+        const vector<int> ratings_document_2 = {5, 5, 5}; // 5
 
-    SearchServer server("in the"s);
-    server.AddDocument(document_id_1, document_1, status, ratings_document_1);
-    server.AddDocument(document_id_2, document_2, status, ratings_document_2);
+        SearchServer server("in the"s);
+        server.AddDocument(document_id_1, document_1, status, ratings_document_1);
+        server.AddDocument(document_id_2, document_2, status, ratings_document_2);
 
-    const auto [words_1, status_1] = server.MatchDocument("test test_1 test_6"s, document_id_1);
-    ASSERT_EQUAL(words_1.size(), 2U);
-    ASSERT_EQUAL(words_1[0], "test"s);
-    ASSERT_EQUAL(words_1[1], "test_1"s);
+        const auto [words_1, status_1] = server.MatchDocument(execution::seq, "test test_1 test_6"s, document_id_1);
+        ASSERT_EQUAL(words_1.size(), 2U);
+        ASSERT_EQUAL(words_1[0], "test"s);
+        ASSERT_EQUAL(words_1[1], "test_1"s);
 
-    const auto [words_2, status_2] = server.MatchDocument("test_3 test"s, document_id_2);
-    ASSERT_EQUAL(words_2.size(), 2U);
-    ASSERT_EQUAL(words_2[0], "test"s);
-    ASSERT_EQUAL(words_2[1], "test_3"s);
+        const auto [words_2, status_2] = server.MatchDocument(execution::seq, "test_3 test"s, document_id_2);
+        ASSERT_EQUAL(words_2.size(), 2U);
+        ASSERT_EQUAL(words_2[0], "test"s);
+        ASSERT_EQUAL(words_2[1], "test_3"s);
 
-    const auto [words_3, status_3] = server.MatchDocument("test -test_1"s, document_id_1);
-    ASSERT(words_3.empty());
+        const auto [words_3, status_3] = server.MatchDocument(execution::seq, "test -test_1"s, document_id_1);
+        ASSERT(words_3.empty());
 
-    const auto [words_4, status_4] = server.MatchDocument("-test"s, document_id_2);
-    ASSERT(words_4.empty());
+        const auto [words_4, status_4] = server.MatchDocument(execution::seq, "-test"s, document_id_2);
+        ASSERT(words_4.empty());
 
-    const auto [words_5, status_5] = server.MatchDocument("-test test"s, document_id_2);
-    ASSERT(words_5.empty());
+        const auto [words_5, status_5] = server.MatchDocument(execution::seq, "-test test"s, document_id_2);
+        ASSERT(words_5.empty());
 
-    const auto [words_6, status_6] = server.MatchDocument("test -test_1"s, document_id_2);
-    ASSERT_EQUAL(words_6.size(), 1U);
-    ASSERT_EQUAL(words_6[0], "test"s);
+        const auto [words_6, status_6] = server.MatchDocument(execution::seq, "test -test_1"s, document_id_2);
+        ASSERT_EQUAL(words_6.size(), 1U);
+        ASSERT_EQUAL(words_6[0], "test"s);    
+    }
+
+    // execution::par
+    {
+        const int document_id_1 = 1;
+        const int document_id_2 = 2;
+        const string document_1 = "test test_1 test_2 test_3"s;
+        const string document_2 = "test test_3 test_4"s;
+        const DocumentStatus status = DocumentStatus::ACTUAL;
+        const vector<int> ratings_document_1 = {1, 2, 3}; // 2
+        const vector<int> ratings_document_2 = {5, 5, 5}; // 5
+
+        SearchServer server("in the"s);
+        server.AddDocument(document_id_1, document_1, status, ratings_document_1);
+        server.AddDocument(document_id_2, document_2, status, ratings_document_2);
+
+        const auto [words_1, status_1] = server.MatchDocument(execution::par, "test test_1 test_6 test4 test5 test6"s, document_id_1);
+        ASSERT_EQUAL(words_1.size(), 2U);
+        ASSERT_EQUAL(words_1[0], "test"s);
+        ASSERT_EQUAL(words_1[1], "test_1"s);
+
+        const auto [words_2, status_2] = server.MatchDocument(execution::par, "test_3 test"s, document_id_2);
+        ASSERT_EQUAL(words_2.size(), 2U);
+        ASSERT_EQUAL(words_2[0], "test"s);
+        ASSERT_EQUAL(words_2[1], "test_3"s);
+
+        const auto [words_3, status_3] = server.MatchDocument(execution::par, "test -test_1"s, document_id_1);
+        ASSERT(words_3.empty());
+
+        const auto [words_4, status_4] = server.MatchDocument(execution::par, "-test"s, document_id_2);
+        ASSERT(words_4.empty());
+
+        const auto [words_5, status_5] = server.MatchDocument(execution::par, "-test test"s, document_id_2);
+        ASSERT(words_5.empty());
+
+        const auto [words_6, status_6] = server.MatchDocument(execution::par, "test -test_1"s, document_id_2);
+        ASSERT_EQUAL(words_6.size(), 1U);
+        ASSERT_EQUAL(words_6[0], "test"s);
+    }
+    
 }
 
 // ----5----
@@ -229,50 +274,100 @@ void TestRatingCalculation() {
 // Фильтрация результатов поиска с использованием предиката, 
 // задаваемого пользователем.
 void TestFilterByPredicate() {
-    SearchServer search_server("и в на"s);
+    // seq
+    {
+        SearchServer search_server("и в на"s);
 
-    (void) search_server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {8, -3});
-    (void) search_server.AddDocument(1, "пушистый кот пушистый хвост"s,       DocumentStatus::ACTUAL, {7, 2, 7});
-    (void) search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, {5, -12, 2, 1});
-    (void) search_server.AddDocument(3, "ухоженный скворец евгений"s,         DocumentStatus::BANNED, {9});
+        (void) search_server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {8, -3});
+        (void) search_server.AddDocument(1, "пушистый кот пушистый хвост"s,       DocumentStatus::ACTUAL, {7, 2, 7});
+        (void) search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, {5, -12, 2, 1});
+        (void) search_server.AddDocument(3, "ухоженный скворец евгений"s,         DocumentStatus::BANNED, {9});
 
-    // проверка четности всех id
-    const auto find_document_1 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; });
-    ASSERT_EQUAL(find_document_1.size(), 2U);
-    ASSERT_EQUAL(find_document_1[0].id, 0);
-    ASSERT_EQUAL(find_document_1[1].id, 2);
-    for (const auto& doc : find_document_1) {
-        ASSERT_EQUAL(doc.id % 2, 0);
+        // проверка четности всех id
+        const auto find_document_1 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; });
+        ASSERT_EQUAL(find_document_1.size(), 2U);
+        ASSERT_EQUAL(find_document_1[0].id, 0);
+        ASSERT_EQUAL(find_document_1[1].id, 2);
+        for (const auto& doc : find_document_1) {
+            ASSERT_EQUAL(doc.id % 2, 0);
+        }
+
+        // проверка отсутствия документа с DocumentStatus::BANNED
+        const auto find_document_2 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
+        ASSERT_EQUAL(find_document_2.size(), 3U);
+        ASSERT_EQUAL(find_document_2[0].id, 1);
+        ASSERT_EQUAL(find_document_2[1].id, 0);
+        ASSERT_EQUAL(find_document_2[2].id, 2);
+        for (const auto& doc : find_document_2) {
+            ASSERT(doc.id != 3);
+        }
+
+        // проверка, что рейтинг документов > 0
+        const auto find_document_3 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return rating > 0; });
+        ASSERT_EQUAL(find_document_3.size(), 3U);
+        ASSERT_EQUAL(find_document_3[0].id, 1);
+        ASSERT_EQUAL(find_document_3[1].id, 3);
+        ASSERT_EQUAL(find_document_3[2].id, 0);
+        for (const auto& doc : find_document_3) {
+            ASSERT(doc.rating > 0);
+        }
+
+
+        // проверка на возврат всех добавленных документов
+        const auto find_document_4 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return 1; });
+        ASSERT_EQUAL(find_document_4.size(), 4U);
+        ASSERT_EQUAL(find_document_4[0].id, 1);
+        ASSERT_EQUAL(find_document_4[1].id, 3);
+        ASSERT_EQUAL(find_document_4[2].id, 0);
+        ASSERT_EQUAL(find_document_4[3].id, 2);
     }
+    // par
+    {
+        SearchServer search_server("и в на"s);
 
-    // проверка отсутствия документа с DocumentStatus::BANNED
-    const auto find_document_2 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
-    ASSERT_EQUAL(find_document_2.size(), 3U);
-    ASSERT_EQUAL(find_document_2[0].id, 1);
-    ASSERT_EQUAL(find_document_2[1].id, 0);
-    ASSERT_EQUAL(find_document_2[2].id, 2);
-    for (const auto& doc : find_document_2) {
-        ASSERT(doc.id != 3);
+        (void) search_server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {8, -3});
+        (void) search_server.AddDocument(1, "пушистый кот пушистый хвост"s,       DocumentStatus::ACTUAL, {7, 2, 7});
+        (void) search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, {5, -12, 2, 1});
+        (void) search_server.AddDocument(3, "ухоженный скворец евгений"s,         DocumentStatus::BANNED, {9});
+
+        // проверка четности всех id
+        const auto find_document_1 = search_server.FindTopDocuments(execution::par, "пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; });
+        ASSERT_EQUAL(find_document_1.size(), 2U);
+        ASSERT_EQUAL(find_document_1[0].id, 0);
+        ASSERT_EQUAL(find_document_1[1].id, 2);
+        for (const auto& doc : find_document_1) {
+            ASSERT_EQUAL(doc.id % 2, 0);
+        }
+
+        // проверка отсутствия документа с DocumentStatus::BANNED
+        const auto find_document_2 = search_server.FindTopDocuments(execution::par, "пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
+        ASSERT_EQUAL(find_document_2.size(), 3U);
+        ASSERT_EQUAL(find_document_2[0].id, 1);
+        ASSERT_EQUAL(find_document_2[1].id, 0);
+        ASSERT_EQUAL(find_document_2[2].id, 2);
+        for (const auto& doc : find_document_2) {
+            ASSERT(doc.id != 3);
+        }
+
+        // проверка, что рейтинг документов > 0
+        const auto find_document_3 = search_server.FindTopDocuments(execution::par, "пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return rating > 0; });
+        ASSERT_EQUAL(find_document_3.size(), 3U);
+        ASSERT_EQUAL(find_document_3[0].id, 1);
+        ASSERT_EQUAL(find_document_3[1].id, 3);
+        ASSERT_EQUAL(find_document_3[2].id, 0);
+        for (const auto& doc : find_document_3) {
+            ASSERT(doc.rating > 0);
+        }
+
+
+        // проверка на возврат всех добавленных документов
+        const auto find_document_4 = search_server.FindTopDocuments(execution::par, "пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return 1; });
+        ASSERT_EQUAL(find_document_4.size(), 4U);
+        ASSERT_EQUAL(find_document_4[0].id, 1);
+        ASSERT_EQUAL(find_document_4[1].id, 3);
+        ASSERT_EQUAL(find_document_4[2].id, 0);
+        ASSERT_EQUAL(find_document_4[3].id, 2);
     }
-
-    // проверка, что рейтинг документов > 0
-    const auto find_document_3 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return rating > 0; });
-    ASSERT_EQUAL(find_document_3.size(), 3U);
-    ASSERT_EQUAL(find_document_3[0].id, 1);
-    ASSERT_EQUAL(find_document_3[1].id, 3);
-    ASSERT_EQUAL(find_document_3[2].id, 0);
-    for (const auto& doc : find_document_3) {
-        ASSERT(doc.rating > 0);
-    }
-
-
-    // проверка на возврат всех добавленных документов
-    const auto find_document_4 = search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return 1; });
-    ASSERT_EQUAL(find_document_4.size(), 4U);
-    ASSERT_EQUAL(find_document_4[0].id, 1);
-    ASSERT_EQUAL(find_document_4[1].id, 3);
-    ASSERT_EQUAL(find_document_4[2].id, 0);
-    ASSERT_EQUAL(find_document_4[3].id, 2);
 }
 
 // ----8----
@@ -694,16 +789,16 @@ void TestGetWordFrequencies() {
     ASSERT_EQUAL(static_cast<int>(server.GetWordFrequencies(3).size()), 0);
 
     // проверка на возврат правильного словаря со значениями
-    const map<string, double>& map_for_id_0 = server.GetWordFrequencies(0);
+    const map<string_view, double>& map_for_id_0 = server.GetWordFrequencies(0);
     ASSERT_EQUAL(static_cast<int>(map_for_id_0.size()), 2);
     ASSERT_EQUAL(map_for_id_0.at("test"s), 2.0/3.0);
     ASSERT_EQUAL(map_for_id_0.at("test_1"s), 1.0/3.0);
 
-    const map<string, double>& map_for_id_1 = server.GetWordFrequencies(1);
+    const map<string_view, double>& map_for_id_1 = server.GetWordFrequencies(1);
     ASSERT_EQUAL(static_cast<int>(map_for_id_1.size()), 1);
     ASSERT_EQUAL(map_for_id_1.at("test_2"s), 1.0);
 
-    const map<string, double>& map_for_id_2 = server.GetWordFrequencies(2);
+    const map<string_view, double>& map_for_id_2 = server.GetWordFrequencies(2);
     ASSERT_EQUAL(static_cast<int>(map_for_id_2.size()), 2);
     ASSERT_EQUAL(map_for_id_2.at("test"s), 1.0/2.0);
     ASSERT_EQUAL(map_for_id_2.at("test_3"s), 1.0/2.0);
@@ -759,6 +854,27 @@ void TestRemoveDocument() {
         server.RemoveDocument(0);
         ASSERT_EQUAL(server.GetDocumentId(1), 1);
     }
+
+    // проверка удаления однопоточным и многопоточным способом
+    {
+        SearchServer server(""s);
+        server.AddDocument(0, "test test_1 test_2"s, DocumentStatus::ACTUAL, {0});
+        server.AddDocument(1, "test test_3 test_4"s, DocumentStatus::ACTUAL, {0});
+        server.AddDocument(2, "test test_5 test_6"s, DocumentStatus::ACTUAL, {0});
+
+        auto documents = server.FindTopDocuments("test");
+        ASSERT_EQUAL(static_cast<int>(documents.size()), 3);
+
+        server.RemoveDocument(execution::seq, 2);
+        documents.clear();
+        documents = server.FindTopDocuments("test");
+        ASSERT_EQUAL(static_cast<int>(documents.size()), 2);
+
+        server.RemoveDocument(execution::par, 1);
+        documents.clear();
+        documents = server.FindTopDocuments("test");
+        ASSERT_EQUAL(static_cast<int>(documents.size()), 1);
+    }
 }
 
 // ----18----
@@ -796,39 +912,170 @@ void TestRemoveDuplicates() {
     search_server.AddDocument(9, "nasty rat with curly hair"s, DocumentStatus::ACTUAL, {1, 2});
     
     ASSERT_EQUAL(search_server.GetDocumentCount(), 9);
-
+    
     RemoveDuplicates(search_server);
 
     ASSERT_EQUAL(search_server.GetDocumentCount(), 5);
 
-    // проверка вывода void функции ostringstream
-    // не могу понять как реализовать
-/* 
-    ostringstream output;
-    output << RemoveDuplicates(search_server);
-  */
+}
+
+// ----19----
+// Тест функции ProcessQueries.
+// Она принимает N запросов и возвращает вектор длины N, 
+// i-й элемент которого — результат вызова FindTopDocuments для i-го запроса.
+void TestProcessQueries() {
+    SearchServer search_server("and with"s);
+
+    int id = 0;
+    for (
+        const string& text : {
+            "funny pet and nasty rat"s,
+            "funny pet with curly hair"s,
+            "funny pet and not very nasty rat"s,
+            "pet with rat and rat and rat"s,
+            "nasty rat with curly hair"s,
+        }
+    ) {
+        search_server.AddDocument(++id, text, DocumentStatus::ACTUAL, {1, 2});
+    }
+
+    const vector<string> queries = {
+        "nasty rat -not"s,
+        "not very funny nasty pet"s,
+        "curly hair"s
+    };
+
+    const auto documents = ProcessQueries(search_server, queries);
+
+    ostringstream out;
+    out << documents[0];
+    
+    ASSERT_EQUAL(out.str(), 
+        "[{ document_id = 1, relevance = 0.183492, rating = 1 },"s
+        " { document_id = 5, relevance = 0.183492, rating = 1 },"s
+        " { document_id = 4, relevance = 0.167358, rating = 1 }]"s);
+}
+
+// ----19----
+// Тест функции ProcessQueriesJoined.
+// Функция должна вернуть объект documents. 
+// Для него можно написать for (const Document& document : documents) 
+// и получить сначала все документы из результата вызова 
+// FindTopDocuments для первого запроса, затем для второго и так далее.
+void TestProcessQueriesJoined() {
+    SearchServer search_server("and with"s);
+
+    int id = 0;
+    for (
+        const string& text : {
+            "funny pet and nasty rat"s,
+            "funny pet with curly hair"s,
+            "funny pet and not very nasty rat"s,
+            "pet with rat and rat and rat"s,
+            "nasty rat with curly hair"s,
+        }
+    ) {
+        search_server.AddDocument(++id, text, DocumentStatus::ACTUAL, {1, 2});
+    }
+
+    const vector<string> queries = {
+        "nasty rat -not"s,
+        "not very funny nasty pet"s,
+        "curly hair"s
+    };
+
+    const auto documents = ProcessQueriesJoined(search_server, queries);
+
+    ostringstream out;
+    out << documents[0] << documents[1] << documents[2];
+    
+    ASSERT_EQUAL(out.str(), 
+        "{ document_id = 1, relevance = 0.183492, rating = 1 }"s
+        "{ document_id = 5, relevance = 0.183492, rating = 1 }"s
+        "{ document_id = 4, relevance = 0.167358, rating = 1 }"s);
 }
 
 // Функция TestSearchServer является точкой входа для запуска тестов.
 void TestSearchServer() {
+    cerr << "TestExcludeStopWordsFromAddedDocumentContent begin...";
     TestExcludeStopWordsFromAddedDocumentContent(); // 0
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestAddDocuments begin...";
     TestAddDocuments(); // 1
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestMinusWords begin...";
     TestMinusWords(); // 3
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestMatchDocument begin...";
     TestMatchDocument(); // 4
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestRelevance begin...";
     TestRelevance(); // 5
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestRatingCalculation begin...";
     TestRatingCalculation(); // 6
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestFilterByPredicate begin...";
     TestFilterByPredicate(); // 7
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestFineDocumendByStatus begin...";
     TestFineDocumendByStatus(); // 8
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestCalculateRelevance begin...";
     TestCalculateRelevance(); // 9
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestGetDocumentId begin...";
     TestGetDocumentId(); // 10
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestSearchServerConstructor begin...";
     TestSearchServerConstructor(); // 11
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestAddDocumentWithInvalidArgument begin...";
     TestAddDocumentWithInvalidArgument(); // 12
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestFindTopDocumentsWithInvalidArgument begin...";
     TestFindTopDocumentsWithInvalidArgument(); // 13
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestMatchDocumentWithInvalidArgument begin...";
     TestMatchDocumentWithInvalidArgument(); // 14
+    cerr << "ALL OK" << endl;
+    
+    cerr << "TestIteratorBeginAndEnd begin...";
     TestIteratorBeginAndEnd(); // 15
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestGetWordFrequencies begin...";
     TestGetWordFrequencies(); // 16
+    cerr << "ALL OK" << endl;
+    
+    cerr << "TestRemoveDocument begin...";
     TestRemoveDocument(); // 17
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestRemoveDuplicates begin..." << endl;
     TestRemoveDuplicates(); // 18
+    cerr << "ALL OK" << endl;
+    
+    cerr << "TestProcessQueries begin...";
+    TestProcessQueries(); // 19
+    cerr << "ALL OK" << endl;
+
+    cerr << "TestProcessQueriesJoined begin...";
+    TestProcessQueriesJoined(); // 20
+    cerr << "ALL OK" << endl;
 }
 
 // --------- Окончание модульных тестов поисковой системы ----------- 

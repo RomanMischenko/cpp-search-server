@@ -149,6 +149,22 @@ void TestRemoveDocument();
 // где вместо N следует подставить id удаляемого документа
 void TestRemoveDuplicates();
 
+// ----19----
+// Тест функции ProcessQueries.
+// Она принимает N запросов и возвращает вектор длины N, 
+// i-й элемент которого — результат вызова FindTopDocuments для i-го запроса.
+void TestProcessQueries();
+
+// ----19----
+// Тест функции ProcessQueriesJoined.
+// Функция должна вернуть объект documents. 
+// Для него можно написать for (const Document& document : documents) 
+// и получить сначала все документы из результата вызова 
+// FindTopDocuments для первого запроса, затем для второго и так далее.
+void TestProcessQueriesJoined();
+
+
+
 // Функция TestSearchServer является точкой входа для запуска тестов.
 void TestSearchServer();
 
